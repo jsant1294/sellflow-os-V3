@@ -8,6 +8,7 @@
 
 ```bash
 npm install
+cp .env.example .env.local
 npm run dev
 ```
 
@@ -26,6 +27,9 @@ http://localhost:3000
 
 ### If `npm install` fails
 Make sure Node.js 18 or newer is installed.
+
+### If QuickScan AI does not work
+Make sure `OPENAI_API_KEY` is set in `.env.local` for local use and in Vercel for production.
 
 ### If port 3000 is in use
 Run:

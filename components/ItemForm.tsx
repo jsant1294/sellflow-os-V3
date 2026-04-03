@@ -6,7 +6,7 @@ import { LanguageToggle } from "@/components/LanguageToggle";
 import { generateListing } from "@/lib/generator";
 import { getSuggestedPricing } from "@/lib/pricing";
 import { addItem } from "@/lib/storage";
-import type { Category, ItemFormValues } from "@/lib/types";
+import type { Category, ItemFormValues, QuickScanAnalysis } from "@/lib/types";
 
 const categoryOptions: { value: Category; label: string }[] = [
   { value: "electronics", label: "Electronics" },
@@ -22,6 +22,11 @@ const categoryOptions: { value: Category; label: string }[] = [
 
 export function ItemForm() {
   const router = useRouter();
+  const [scanError, setScanError] = useState("");
+  const [scanNotice, setScanNotice] = useState("");
+  const [scanPreview, setScanPreview] = useState("");
+  const [scanFileName, setScanFileName] = useState("");
+  const [isScanning, setIsScanning] = useState(false);
   const [values, setValues] = useState<ItemFormValues>({
     itemName: "",
     category: "misc",
@@ -55,6 +60,66 @@ export function ItemForm() {
     setValues((current) => ({ ...current, ...suggestions }));
   }
 
+  function applyQuickScan(analysis: QuickScanAnalysis) {
+    setValues((current) => ({
+      ...current,
+      itemName: analysis.itemName,
+      category: analysis.category,
+      condition: analysis.condition,
+      notes: analysis.notes,
+      quantity: analysis.quantity,
+      listPrice: analysis.pricing.max,
+      targetPrice: analysis.pricing.target,
+      floorPrice: analysis.pricing.fast,
+      lowestAcceptable: analysis.pricing.lowestAcceptable,
+    }));
+  }
+
+  async function onPhotoSelected(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setScanPreview((current) => {
+      if (current) {
+        URL.revokeObjectURL(current);
+      }
+
+      return previewUrl;
+    });
+    setScanFileName(file.name);
+    setScanError("");
+    setScanNotice("");
+    setIsScanning(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        body: formData,
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(typeof payload.error === "string" ? payload.error : "QuickScan AI failed.");
+      }
+
+      applyQuickScan(payload.analysis as QuickScanAnalysis);
+      setScanNotice("QuickScan AI filled the form from your photo. Review anything you want to tweak.");
+    } catch (error) {
+      setScanError(error instanceof Error ? error.message : "QuickScan AI failed.");
+    } finally {
+      setIsScanning(false);
+      event.target.value = "";
+    }
+  }
+
   function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     const pricing = values.listPrice > 0 ? values : { ...values, ...suggestions };
@@ -71,6 +136,39 @@ export function ItemForm() {
           <div className="muted small">Generate a full quick-sale pack with titles, pricing, replies, and relist guidance.</div>
         </div>
         <LanguageToggle value={values.language} onChange={(language) => update("language", language)} />
+      </div>
+
+      <div className="scan-card stack">
+        <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <strong>QuickScan AI</strong>
+            <div className="muted small">Upload or snap a photo to autofill the item name, category, condition, notes, and pricing.</div>
+          </div>
+          <label className="btn-secondary scan-upload" htmlFor="quickscan-image">
+            {isScanning ? "Analyzing photo..." : "Upload or capture photo"}
+          </label>
+        </div>
+
+        <input
+          id="quickscan-image"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={onPhotoSelected}
+          disabled={isScanning}
+          className="scan-input"
+        />
+
+        {(scanPreview || scanNotice || scanError) && (
+          <div className="scan-results">
+            {scanPreview && <img src={scanPreview} alt="QuickScan preview" className="scan-preview" />}
+            <div className="stack" style={{ gap: 8 }}>
+              {scanFileName && <div className="muted small">Selected photo: {scanFileName}</div>}
+              {scanNotice && <div className="scan-success small">{scanNotice}</div>}
+              {scanError && <div className="scan-error small">{scanError}</div>}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="form-grid">

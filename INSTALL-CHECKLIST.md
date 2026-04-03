@@ -5,6 +5,7 @@
 - VS Code or another editor
 - Node.js 18+
 - Optional: GitHub + Vercel account for deployment
+- OpenAI API key for QuickScan AI photo intake
 
 ## Local setup
 - Unzip project
@@ -17,6 +18,7 @@
 - Create GitHub repository
 - Upload project files
 - Import into Vercel
+- Add `OPENAI_API_KEY` if QuickScan AI should work in production
 - Deploy
 
 ## What to test after install

@@ -2,6 +2,10 @@
 
 SellFlow OS Final V3 is a standalone Next.js app for generating fast local-sale listing packs.
 
+It now includes QuickScan AI, which can analyze an uploaded item photo and prefill the intake form with an item name, category, condition estimate, notes, and pricing.
+
+Lucio also supports server-side context-aware assistance for pricing, listing improvement, buyer replies, and faster sell-through recommendations.
+
 It helps you produce:
 - Facebook Marketplace copy
 - OfferUp copy
@@ -27,6 +31,7 @@ Use it as:
 
 ```bash
 npm install
+cp .env.example .env.local
 npm run dev
 ```
 
@@ -36,14 +41,17 @@ Then open:
 http://localhost:3000
 ```
 
+Set `OPENAI_API_KEY` in `.env.local` and in Vercel if you want QuickScan AI and Lucio AI enabled. `OPENAI_LUCIO_MODEL` is optional if you want Lucio on a different model.
+
 ## Deploy to Vercel
 
 1. Create a GitHub repo.
 2. Upload this project.
 3. Import the repo into Vercel.
-4. Click Deploy.
+4. Add `OPENAI_API_KEY` in the Vercel project environment variables.
+5. Click Deploy.
 
-No API keys are required for this version.
+The core listing workflow works without AI, but QuickScan AI requires OpenAI credentials.
 
 ## What makes this version stronger
 

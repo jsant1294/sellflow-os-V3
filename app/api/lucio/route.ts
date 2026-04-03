@@ -3,8 +3,35 @@ import type { LucioRequestPayload, LucioResponsePayload } from "@/lib/types";
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 
+function sanitizeModelText(value: string) {
+  const leakMarkers = [
+    '","copyText"',
+    "','copyText'",
+    '"copyText":',
+    "'copyText':",
+    "},{",
+    "}]}",
+  ];
+
+  let sanitized = value.replace(/\s+/g, " ").trim();
+
+  for (const marker of leakMarkers) {
+    const markerIndex = sanitized.indexOf(marker);
+    if (markerIndex >= 0) {
+      sanitized = sanitized.slice(0, markerIndex).trim();
+    }
+  }
+
+  return sanitized.replace(/[\s,:;]+$/g, "").trim();
+}
+
 function normalizeString(value: unknown, fallback: string) {
-  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const sanitized = sanitizeModelText(value);
+  return sanitized ? sanitized : fallback;
 }
 
 function normalizeResponse(payload: unknown): LucioResponsePayload {
@@ -17,13 +44,16 @@ function normalizeResponse(payload: unknown): LucioResponsePayload {
       .slice(0, 4)
       .map((card) => {
         const entry = card && typeof card === "object" ? (card as Record<string, unknown>) : {};
-        const title = normalizeString(entry.title, "Lucio")
+        const title = normalizeString(entry.title, "Lucio");
         const body = normalizeString(entry.body, "No guidance returned.");
         const copyText = normalizeString(entry.copyText, body);
 
         return { title, body, copyText };
       })
-      .filter((card) => card.body.length > 0),
+      .filter((card) => {
+        const combined = `${card.title} ${card.body} ${card.copyText}`;
+        return card.body.length > 0 && !/[{}][^\s]*$/.test(combined) && !combined.includes("copyText");
+      }),
   };
 }
 
